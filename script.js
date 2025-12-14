@@ -673,20 +673,57 @@ function renderCharacterList() {
     });
     document.getElementById('total-count').textContent = characters.length;
 }
+/* ================= 수정된 renderStatusTable 함수 ================= */
 function renderStatusTable() {
     const tbody = document.getElementById('status-table-body');
+    if (!tbody) return; // 테이블 몸체가 없으면 중단
+
     tbody.innerHTML = '';
     characters.forEach(char => {
         if (typeof char.hp === 'undefined') char.hp = 100;
         if (typeof char.stress === 'undefined') char.stress = 0;
+        
         const hpColor = char.hp < 30 ? "bg-red-500" : (char.hp < 70 ? "bg-yellow-500" : "bg-green-500");
         const stressColor = char.stress > 80 ? "bg-red-600" : (char.stress > 50 ? "bg-orange-400" : "bg-blue-400");
+        
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="px-4 py-3"><div class="font-medium text-slate-900 dark:text-white flex items-center">${char.name} ${getRoleBadge(char.role)}</div></td><td class="px-4 py-3"><div class="text-xs text-slate-500 mb-1">체력 ${Math.round(char.hp)}%</div><div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-1.5 mb-2"><div class="${hpColor} h-1.5 rounded-full transition-all" style="width:${char.hp}%"></div></div><div class="text-xs text-slate-500 mb-1">스트레스 ${Math.round(char.stress)}%</div><div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-1.5"><div class="${stressColor} h-1.5 rounded-full transition-all" style="width:${char.stress}%"></div></div></td><td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300"><span class="font-bold text-xs bg-slate-100 dark:bg-slate-600 px-2 py-1 rounded mr-1">${getLocationName(char.currentLocation)}</span>${char.currentAction||'-'}</td>`;
+        tr.className = "border-b border-slate-100 dark:border-slate-700 last:border-0";
+        tr.innerHTML = `
+            <td class="px-4 py-3">
+                <div class="font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                    ${char.name} ${getRoleBadge(char.role)}
+                </div>
+            </td>
+            <td class="px-4 py-3 w-1/3">
+                <div class="flex justify-between text-[10px] text-slate-500 mb-1">
+                    <span>HP</span> <span>${Math.round(char.hp)}%</span>
+                </div>
+                <div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-1.5 mb-2 overflow-hidden">
+                    <div class="${hpColor} h-1.5 rounded-full transition-all duration-500" style="width:${char.hp}%"></div>
+                </div>
+                <div class="flex justify-between text-[10px] text-slate-500 mb-1">
+                    <span>Stress</span> <span>${Math.round(char.stress)}%</span>
+                </div>
+                <div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-1.5 overflow-hidden">
+                    <div class="${stressColor} h-1.5 rounded-full transition-all duration-500" style="width:${char.stress}%"></div>
+                </div>
+            </td>
+            <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
+                <div class="flex flex-col items-start gap-1">
+                    <span class="font-bold text-[10px] bg-slate-100 dark:bg-slate-600 px-1.5 py-0.5 rounded text-slate-500">${getLocationName(char.currentLocation)}</span>
+                    <span class="text-xs truncate max-w-[120px]">${char.currentAction || '-'}</span>
+                </div>
+            </td>`;
         tbody.appendChild(tr);
     });
-    document.getElementById('day-badge').textContent = `${day}일차`;
+
+    // [에러 수정 부분] 요소가 있는지 확인하고 텍스트 변경
+    const badge = document.getElementById('day-badge');
+    if (badge) {
+        badge.textContent = `${day}일차`;
+    }
 }
+
 function getProbabilisticChange(score) {
     const rand = Math.random() * 100;
     if (score === 5) { if (rand < 50) return 10; if (rand < 75) return 5; if (rand < 90) return 0; return -5; } 
