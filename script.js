@@ -181,178 +181,233 @@ function calculateChemistry(mbti1, mbti2) {
 
 /* ================= 4. 핵심 로직: 다음날 진행 ================= */
 
+/* ================= [수정됨] 안전장치가 추가된 nextDay 함수 ================= */
 function nextDay() {
-    if (characters.length === 0) { alert("최소 1명의 캐릭터가 필요합니다."); return; }
-    if (isProcessing) return; // 중복 클릭 방지
+    // 1. 캐릭터 확인
+    if (!characters || characters.length === 0) {
+        alert("캐릭터가 없습니다. [멤버 소환] 버튼을 먼저 눌러주세요!");
+        return;
+    }
+
+    // 2. 중복 클릭 방지 (이미 진행 중이면 무시)
+    if (isProcessing) {
+        console.log("🚫 아직 처리 중입니다. 잠시만 기다려주세요.");
+        return; 
+    }
+    
+    // 3. 진행 상태 잠금
     isProcessing = true;
+    const nextBtn = document.querySelector('button[onclick="nextDay()"]') || document.getElementById('btn-execution');
+    const originalBtnText = nextBtn ? nextBtn.innerHTML : '다음날 진행';
+    
+    if (nextBtn) {
+        nextBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 계산 중...';
+        nextBtn.classList.add('opacity-50', 'cursor-not-allowed'); // 버튼 흐리게
+    }
 
-    // 버튼 로딩 상태 표시
-    const nextBtn = document.getElementById('btn-execution') ? null : document.querySelector('button[onclick="nextDay()"]');
-    if (nextBtn) nextBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> 진행 중...';
-
-    // 렌더링 지연을 위해 setTimeout 사용 (UI 반응성 확보)
+    // 4. 로직 실행 (안전하게 try-catch 사용)
+    // 약간의 딜레이(10ms)를 주어 버튼 UI가 바뀌는 시간을 확보합니다.
     setTimeout(() => {
-        day++;
-        const dailyLogs = [];
-        characters.forEach(c => c.interactionGroup = null);
+        try {
+            console.log(`=== Day ${day + 1} 시작 ===`);
+            
+            day++;
+            const dailyLogs = [];
+            characters.forEach(c => c.interactionGroup = null);
 
-        const isComeback = currentSeason === 'comeback';
+            const isComeback = currentSeason === 'comeback';
 
-        // 1. 외출 여부 및 장소 결정
-        characters.forEach(char => {
-            if (typeof char.hp === 'undefined') char.hp = 100;
-            if (typeof char.stress === 'undefined') char.stress = 0;
+            // [1] 외출 및 장소 결정
+            characters.forEach(char => {
+                // 데이터 안전장치
+                if (typeof char.hp === 'undefined') char.hp = 100;
+                if (typeof char.stress === 'undefined') char.stress = 0;
+                if (!char.role) char.role = 'Artist';
 
-            if (char.hp < 10) {
-                char.currentLocation = 'room'; // 체력 고갈 시 강제 휴식
-                return;
-            }
-
-            let goOutChance = isComeback ? 0.9 : 0.4;
-            if (char.mbti[0] === 'I') goOutChance -= 0.1;
-
-            if (Math.random() < goOutChance) {
-                let targetPlaces = [];
-                if (isComeback) {
-                    targetPlaces = PLACES.filter(p => ['practice', 'studio', 'broadcast', 'shop'].includes(p.id));
-                } else {
-                    targetPlaces = PLACES.filter(p => ['pc_bang', 'hangang', 'cinema', 'dept_store', 'travel', 'camping'].includes(p.id));
+                if (char.hp < 10) {
+                    char.currentLocation = 'room'; // 강제 휴식
+                    return;
                 }
-                if(targetPlaces.length === 0) targetPlaces = PLACES.filter(p => p.type === 'out');
-                char.currentLocation = getRandom(targetPlaces).id;
-            } else {
-                char.currentLocation = getRandom(['apt', 'kitchen', 'room']);
-            }
-        });
 
-        // 2. 그룹핑
-        const locationMap = {};
-        characters.forEach(char => {
-            if (!locationMap[char.currentLocation]) locationMap[char.currentLocation] = [];
-            locationMap[char.currentLocation].push(char);
-        });
+                let goOutChance = isComeback ? 0.9 : 0.4;
+                if (char.mbti && char.mbti[0] === 'I') goOutChance -= 0.1;
 
-        // 3. 상호작용
-        for (const locId in locationMap) {
-            const people = locationMap[locId];
-            people.sort(() => Math.random() - 0.5);
-
-            while (people.length > 0) {
-                let groupSize = 1;
-                if (people.length >= 2) groupSize = 2;
-                
-                const group = [];
-                for(let i=0; i<groupSize; i++) { if(people.length > 0) group.push(people.pop()); }
-                const hasKinney = group.some(c => c.name.includes("키니"));
-
-                // [SOLO]
-                if (group.length === 1) {
-                    const actor = group[0];
-                    let actionPool = ACTIONS.filter(a => a.place === locId);
-                    if (actionPool.length === 0) actionPool = ACTIONS.filter(a => a.id === 'rest');
+                if (Math.random() < goOutChance) {
+                    let targetPlaces = [];
+                    if (isComeback) {
+                        targetPlaces = PLACES.filter(p => ['practice', 'studio', 'broadcast', 'shop', 'gym'].includes(p.id));
+                    } else {
+                        targetPlaces = PLACES.filter(p => ['pc_bang', 'hangang', 'cinema', 'dept_store', 'travel', 'camping'].includes(p.id));
+                    }
+                    if (targetPlaces.length === 0) targetPlaces = PLACES.filter(p => p.type === 'out');
                     
-                    const action = getRandom(actionPool);
-                    const processedText = fillTemplate(getRandom(action.text));
-                    actor.currentAction = action.name;
+                    char.currentLocation = getRandom(targetPlaces).id;
+                } else {
+                    char.currentLocation = getRandom(['apt', 'kitchen', 'room']);
+                }
+            });
+
+            // [2] 장소별 그룹핑
+            const locationMap = {};
+            characters.forEach(char => {
+                if (!locationMap[char.currentLocation]) locationMap[char.currentLocation] = [];
+                locationMap[char.currentLocation].push(char);
+            });
+
+            // [3] 상호작용
+            for (const locId in locationMap) {
+                const people = locationMap[locId];
+                // 랜덤 섞기
+                for (let i = people.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [people[i], people[j]] = [people[j], people[i]];
+                }
+
+                while (people.length > 0) {
+                    let groupSize = 1;
+                    if (people.length >= 2) groupSize = 2;
                     
-                    // 스탯 & SNS 반응
-                    const statusResult = updateStats(actor, action.id, false);
-                    if(isComeback) actor.stress += 5;
+                    const group = [];
+                    for(let i=0; i<groupSize; i++) { if(people.length > 0) group.push(people.pop()); }
+                    const hasKinney = group.some(c => c.name.includes("키니"));
 
-                    let reactType = 'visual';
-                    if (action.id === 'cooking') reactType = 'food';
-                    if (action.id === 'gaming') reactType = 'game';
-                    if (action.id === 'work' || action.id === 'music') reactType = 'work';
-
-                    dailyLogs.push({ text: `${actor.name}${getJosa(actor.name, '은/는')} ${getLocationName(locId)}에서 ${processedText}.`, type: 'solo', reaction: getFanReaction(reactType, actor.name) });
-
-                    if (statusResult === 'faint') dailyLogs.push({ text: `🚨 [응급] ${actor.name}${getJosa(actor.name, '이/가')} 과로로 쓰러져 링거를 맞았다!`, type: 'event' });
-                    if (statusResult === 'explosion') dailyLogs.push({ text: `🔥 [폭발] ${actor.name}${getJosa(actor.name, '이/가')} 스트레스를 못 이기고 숙소를 뛰쳐나갔다!`, type: 'event' });
-                } 
-                // [GROUP]
-                else if (group.length === 2) {
-                    const actor = group[0];
-                    const target = group[1];
-                    const isSoulmate = actor.isSoulmateWith === target.id;
-                    const rank1 = getRank(actor.role);
-                    const rank2 = getRank(target.role);
-
-                    // 1) 서열 이벤트 (20%)
-                    if (Math.random() < 0.2 && rank1 !== rank2) {
-                        if (rank1 > rank2) {
-                            if (actor.role === 'CEO') {
-                                dailyLogs.push({ text: `[면담] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 "요즘 활동은 할 만하냐?"며 어깨를 두드려주었다.`, type: 'event' });
-                                updateRelationship(actor.id, target.id, 5);
-                            } else {
-                                if (Math.random() > 0.3) {
-                                    dailyLogs.push({ text: `[내리사랑] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 "많이 먹어라"며 법카로 밥을 사줬다.`, type: 'event', reaction: getFanReaction('visual') });
-                                    updateRelationship(target.id, actor.id, 15);
-                                } else {
-                                    dailyLogs.push({ text: `[훈계] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}를 불러 "라떼는 말이야"라며 꼰대 짓을 했다.`, type: 'event', reaction: getFanReaction('nag') });
-                                    updateRelationship(target.id, actor.id, -5);
-                                }
-                            }
-                            actor.currentAction = "선배 노릇"; target.currentAction = "사회생활";
-                        } else {
-                            dailyLogs.push({ text: `[인사] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}을(를) 보자마자 90도로 깍듯하게 인사했다.`, type: 'social' });
-                            updateRelationship(target.id, actor.id, 5);
-                            actor.currentAction = "폴더 인사"; target.currentAction = "받아줌";
-                        }
-                    }
-                    // 2) 비밀 이벤트 (10%)
-                    else if (Math.random() < 0.1) {
-                        let secretPool = SECRET_EVENTS.filter(e => e.target === 'all');
-                        if (isSoulmate) secretPool = [...secretPool, ...SECRET_EVENTS.filter(e => e.target === 'soulmate')];
-                        const secret = getRandom(secretPool);
-                        
-                        updateRelationship(actor.id, target.id, 10);
-                        updateRelationship(target.id, actor.id, 10);
-                        actor.stress -= 10; target.stress -= 10;
-
-                        dailyLogs.push({ 
-                            text: `🤫 [비밀] ${actor.name}${getJosa(actor.name, '와/과')} ${target.name}${getJosa(target.name, '은/는')} ${secret.text}.`, 
-                            type: 'secret', 
-                            reaction: `<span class="text-purple-400 font-bold text-xs ml-2">👁️ 목격담</span> <span class="text-slate-500 text-xs">${getRandom(SECRET_REACTIONS)}</span>` 
-                        });
-                        actor.currentAction = "비밀 행동"; target.currentAction = "비밀 행동";
-                    }
-                    // 3) 일반 이벤트 (30%)
-                    else if (Math.random() < 0.3) {
-                        const evt = getRandom(EVENTS);
-                        if ((evt.type === 'fight' || evt.type === 'cut') && isSoulmate) {
-                            dailyLogs.push({ text: `[투정] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 투정을 부렸지만, 금방 풀렸다.`, type: 'event', reaction: getFanReaction('visual') });
-                        } else {
-                            updateRelationship(actor.id, target.id, evt.change);
-                            updateRelationship(target.id, actor.id, evt.change);
-                            
-                            let reactType = 'visual';
-                            if (evt.type === 'fight') reactType = 'fight';
-                            if (evt.type === 'flirt') reactType = 'flirt';
-                            
-                            dailyLogs.push({ text: `[${evt.name}] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}${evt.text}.`, type: 'event', reaction: getFanReaction(reactType) });
-                        }
-                        actor.currentAction = evt.name; target.currentAction = evt.name;
-                    }
-                    // 4) 일상 대화
-                    else {
+                    // --- 솔로 행동 ---
+                    if (group.length === 1) {
+                        const actor = group[0];
                         let actionPool = ACTIONS.filter(a => a.place === locId);
                         if (actionPool.length === 0) actionPool = ACTIONS.filter(a => a.id === 'rest');
+                        
                         const action = getRandom(actionPool);
                         const processedText = fillTemplate(getRandom(action.text));
-                        const chem = calculateChemistry(actor.mbti, target.mbti);
+                        actor.currentAction = action.name;
                         
-                        updateRelationship(actor.id, target.id, getProbabilisticChange(chem));
-                        updateRelationship(target.id, actor.id, getProbabilisticChange(chem));
+                        // 스탯 업데이트
+                        const statusResult = updateStats(actor, action.id, false);
+                        if(isComeback) actor.stress += 5;
 
-                        actor.currentAction = "함께 " + action.name;
-                        target.currentAction = "함께 " + action.name;
+                        // 반응 타입 설정
+                        let reactType = 'visual';
+                        if (action.id === 'cooking') reactType = 'food';
+                        if (action.id === 'gaming') reactType = 'game';
+                        if (action.id === 'work' || action.id === 'music') reactType = 'work';
 
-                        dailyLogs.push({ text: `${actor.name}${getJosa(actor.name, '와/과')} ${target.name}${getJosa(target.name, '은/는')} ${getLocationName(locId)}에서 함께 ${processedText}.`, type: 'social', reaction: getFanReaction('visual') });
+                        dailyLogs.push({ 
+                            text: `${actor.name}${getJosa(actor.name, '은/는')} ${getLocationName(locId)}에서 ${processedText}.`, 
+                            type: 'solo', 
+                            reaction: getFanReaction(reactType, actor.name) 
+                        });
+
+                        if (statusResult === 'faint') dailyLogs.push({ text: `🚨 [응급] ${actor.name}${getJosa(actor.name, '이/가')} 과로로 쓰러져 링거를 맞았다!`, type: 'event' });
+                        if (statusResult === 'explosion') dailyLogs.push({ text: `🔥 [폭발] ${actor.name}${getJosa(actor.name, '이/가')} 스트레스를 못 이기고 숙소를 뛰쳐나갔다!`, type: 'event' });
+                    } 
+                    // --- 2인 행동 ---
+                    else if (group.length === 2) {
+                        const actor = group[0];
+                        const target = group[1];
+                        const isSoulmate = actor.isSoulmateWith === target.id;
+                        const rank1 = getRank(actor.role);
+                        const rank2 = getRank(target.role);
+
+                        // 1) 서열 (20%)
+                        if (Math.random() < 0.2 && rank1 !== rank2) {
+                            if (rank1 > rank2) {
+                                if (actor.role === 'CEO') {
+                                    dailyLogs.push({ text: `[면담] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 "요즘 활동은 할 만하냐?"며 격려했다.`, type: 'event' });
+                                    updateRelationship(actor.id, target.id, 5);
+                                } else {
+                                    if (Math.random() > 0.3) {
+                                        dailyLogs.push({ text: `[내리사랑] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 법카로 밥을 사줬다.`, type: 'event', reaction: getFanReaction('visual') });
+                                        updateRelationship(target.id, actor.id, 15);
+                                    } else {
+                                        dailyLogs.push({ text: `[훈계] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}를 불러 "라떼는 말이야"를 시전했다.`, type: 'event', reaction: getFanReaction('nag') });
+                                        updateRelationship(target.id, actor.id, -5);
+                                    }
+                                }
+                                actor.currentAction = "선배 노릇"; target.currentAction = "사회생활";
+                            } else {
+                                dailyLogs.push({ text: `[인사] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}을(를) 보자마자 90도로 인사했다.`, type: 'social' });
+                                updateRelationship(target.id, actor.id, 5);
+                                actor.currentAction = "폴더 인사"; target.currentAction = "받아줌";
+                            }
+                        }
+                        // 2) 비밀 (10%)
+                        else if (Math.random() < 0.1) {
+                            let secretPool = SECRET_EVENTS.filter(e => e.target === 'all');
+                            if (isSoulmate) secretPool = [...secretPool, ...SECRET_EVENTS.filter(e => e.target === 'soulmate')];
+                            const secret = getRandom(secretPool);
+                            
+                            updateRelationship(actor.id, target.id, 10);
+                            updateRelationship(target.id, actor.id, 10);
+                            actor.stress -= 10; target.stress -= 10;
+
+                            dailyLogs.push({ 
+                                text: `🤫 [비밀] ${actor.name}${getJosa(actor.name, '와/과')} ${target.name}${getJosa(target.name, '은/는')} ${secret.text}.`, 
+                                type: 'secret', 
+                                reaction: `<span class="text-purple-400 font-bold text-xs ml-2">👁️ 목격담</span> <span class="text-slate-500 text-xs">${getRandom(SECRET_REACTIONS)}</span>` 
+                            });
+                            actor.currentAction = "비밀 행동"; target.currentAction = "비밀 행동";
+                        }
+                        // 3) 일반 이벤트 (30%)
+                        else if (Math.random() < 0.3) {
+                            const evt = getRandom(EVENTS);
+                            if ((evt.type === 'fight' || evt.type === 'cut') && isSoulmate) {
+                                dailyLogs.push({ text: `[투정] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 투정을 부렸지만, 금방 풀렸다.`, type: 'event', reaction: getFanReaction('visual') });
+                            } else {
+                                updateRelationship(actor.id, target.id, evt.change);
+                                updateRelationship(target.id, actor.id, evt.change);
+                                
+                                let reactType = 'visual';
+                                if (evt.type === 'fight') reactType = 'fight';
+                                if (evt.type === 'flirt') reactType = 'flirt';
+                                
+                                dailyLogs.push({ text: `[${evt.name}] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}${evt.text}.`, type: 'event', reaction: getFanReaction(reactType) });
+                            }
+                            actor.currentAction = evt.name; target.currentAction = evt.name;
+                        } 
+                        // 4) 일상 (나머지)
+                        else {
+                            let actionPool = ACTIONS.filter(a => a.place === locId);
+                            if (actionPool.length === 0) actionPool = ACTIONS.filter(a => a.id === 'rest');
+                            const action = getRandom(actionPool);
+                            const processedText = fillTemplate(getRandom(action.text));
+                            const chem = calculateChemistry(actor.mbti, target.mbti);
+                            
+                            updateRelationship(actor.id, target.id, getProbabilisticChange(chem));
+                            updateRelationship(target.id, actor.id, getProbabilisticChange(chem));
+
+                            actor.currentAction = "함께 " + action.name;
+                            target.currentAction = "함께 " + action.name;
+
+                            dailyLogs.push({ text: `${actor.name}${getJosa(actor.name, '와/과')} ${target.name}${getJosa(target.name, '은/는')} ${getLocationName(locId)}에서 함께 ${processedText}.`, type: 'social', reaction: getFanReaction('visual') });
+                        }
+                        updateStats(actor, 'rest', hasKinney); updateStats(target, 'rest', hasKinney);
                     }
-                    updateStats(actor, 'rest', hasKinney); updateStats(target, 'rest', hasKinney);
                 }
             }
+
+            // [4] 결과 저장 및 렌더링
+            logs = [...dailyLogs, ...logs];
+            renderLogs(dailyLogs);
+            renderStatusTable();
+            renderLocations();
+            updateUI();
+            saveGameData();
+            
+            console.log("✅ 완료");
+
+        } catch (error) {
+            console.error("❌ 시뮬레이션 중 오류 발생:", error);
+            alert("오류가 발생했습니다! (F12 콘솔 확인 필요)\n" + error.message);
+        } finally {
+            // [중요] 에러가 나든 성공하든 버튼 잠금 해제
+            isProcessing = false;
+            if (nextBtn) {
+                nextBtn.innerHTML = originalBtnText;
+                nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
         }
+    }, 10); // UI 렌더링을 위해 아주 짧은 지연
+}
 
         // 로그 및 데이터 저장
         logs = [...dailyLogs, ...logs];
