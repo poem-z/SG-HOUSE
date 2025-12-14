@@ -409,20 +409,6 @@ function nextDay() {
     }, 10); // UI 렌더링을 위해 아주 짧은 지연
 }
 
-        // 로그 및 데이터 저장
-        logs = [...dailyLogs, ...logs];
-        renderLogs(dailyLogs);
-        renderStatusTable();
-        renderLocations();
-        updateUI();
-        saveGameData();
-
-        // 처리 완료 후 버튼 복구
-        isProcessing = false;
-        if (nextBtn) nextBtn.innerHTML = '다음날 진행 <i class="fa-solid fa-arrow-right ml-2"></i>';
-
-    }, 50); // 50ms 지연으로 UI 렌더링 확보
-}
 
 /* ================= 5. UI 렌더링 및 유틸리티 ================= */
 
