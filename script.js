@@ -48,35 +48,33 @@ const ACTIONS = [
     { id: 'swim', name: '호캉스', place: 'hotel', text: ['수영장에서 인생샷을 찍었다', '룸서비스를 시켜 먹었다', '조식을 먹으러 일찍 일어났다'] }
 ];
 
-/* ================= 수정된 이벤트 목록 (서열 행동 제거됨) ================= */
+// 랜덤 이벤트 (하극상 방지를 위해 서열 관련 이벤트 삭제됨)
 const EVENTS = [
-    // [Positive: 우정]
+    // [Positive]
     { type: 'friend', name: '수다', change: 5, text: '와(과) 밤새도록 시간 가는 줄 모르고 수다를 떨었다' },
     { type: 'praise', name: '칭찬', change: 10, text: '의 바뀐 헤어스타일과 코디를 칭찬해주었다' },
     { type: 'gift', name: '선물', change: 10, text: '에게 "오다가 주웠다"며 작은 선물을 줬다' },
-    { type: 'treat', name: '한턱', change: 15, text: '에게 맛있는 밥을 사주며 "형(언니)이 쏜다!"라고 했다' }, // 이건 동등한 관계에서도 씀
+    { type: 'treat', name: '한턱', change: 15, text: '에게 맛있는 밥을 사주며 "형(언니)이 쏜다!"라고 했다' },
     { type: 'reconcile', name: '화해', change: 20, text: '와(과) 술 한 잔 하며 묵은 감정을 털어내고 화해했다' },
     { type: 'console', name: '위로', change: 15, text: '이(가) 우울해 보여 조용히 다가가 따뜻하게 안아주었다' },
     
-    // [Negative: 갈등]
+    // [Negative]
     { type: 'fight', name: '싸움', change: -15, text: '와(과) 사소한 말실수 때문에 크게 다퉜다' },
-    { type: 'nag', name: '잔소리', change: -5, text: '에게 "양말 좀 뒤집어 놓지 마!"라고 잔소리를 퍼부었다' }, // 이건 동거인끼리 가능
+    { type: 'nag', name: '잔소리', change: -5, text: '에게 "양말 좀 뒤집어 놓지 마!"라고 잔소리를 퍼부었다' },
     { type: 'steal_food', name: '서리', change: -10, text: '이(가) 아껴둔 간식을 몰래 훔쳐 먹다가 걸렸다' },
     { type: 'ignore', name: '무시', change: -10, text: '의 인사를 못 본 척하고 지나갔다' },
     { type: 'diss', name: '디스', change: -15, text: '의 흑역사 사진을 단톡방에 올려 놀렸다' },
     { type: 'cut', name: '절교', change: -30, text: '와(과) 더 이상 말을 섞지 않겠다며 냉전을 선포했다' },
 
-    // [Romance: 설렘]
+    // [Romance/Flirt]
     { type: 'flirt', name: '플러팅', change: 10, text: '에게 은근슬쩍 윙크를 하며 장난을 쳤다' },
     { type: 'skinship', name: '스킨십', change: 15, text: '의 어깨에 자연스럽게 기대어 잠들었다' },
     { type: 'gaze', name: '눈맞춤', change: 10, text: '와(과) 우연히 눈이 마주치자 묘한 기류가 흘렀다' },
 
-    // [Funny: 일상]
+    // [Funny]
     { type: 'drunk', name: '주사', change: 5, text: '에게 술에 취해 혀 짧은 소리로 애교를 부렸다' },
     { type: 'game_bet', name: '내기', change: -5, text: '와(과) 게임 내기를 하다가 져서 딱밤을 맞았다' },
     { type: 'tmi', name: 'TMI', change: 5, text: '에게 안 궁금한 TMI를 1시간 동안 떠들었다' }
-    
-    // ⚠️ [삭제됨] 인사, 내리사랑(법카), 훈계 -> 이제 서열 로직에서만 발생함
 ];
 
 const SECRET_EVENTS = [
@@ -206,7 +204,7 @@ function calculateChemistry(mbti1, mbti2) {
 
 function nextDay() {
     if (characters.length === 0) { alert("최소 1명의 캐릭터가 필요합니다."); return; }
-    if (isProcessing) { console.log("처리 중..."); return; }
+    if (isProcessing) return; // 중복 클릭 방지
     
     isProcessing = true;
     const nextBtn = document.querySelector('button[onclick="nextDay()"]') || document.getElementById('btn-execution');
@@ -312,7 +310,7 @@ function nextDay() {
                                     updateRelationship(actor.id, target.id, 5);
                                 } else {
                                     if (Math.random() > 0.3) {
-                                        dailyLogs.push({ text: `[내리사랑] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 "많이 먹어라"며 법카를 긁었다.`, type: 'event', reaction: getFanReaction('visual') });
+                                        dailyLogs.push({ text: `[내리사랑] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}에게 "많이 먹어라"며 법카로 밥을 사줬다.`, type: 'event', reaction: getFanReaction('visual') });
                                         updateRelationship(target.id, actor.id, 15);
                                     } else {
                                         dailyLogs.push({ text: `[훈계] ${actor.name}${getJosa(actor.name, '은/는')} ${target.name}를 불러 "라떼는 말이야"를 시전했다.`, type: 'event', reaction: getFanReaction('nag') });
@@ -641,22 +639,11 @@ function switchTab(tabId) {
 }
 function toggleSeason() {
     const btn = document.getElementById('season-btn');
-    if (!btn) return; // 버튼이 없으면 함수 종료 (에러 방지)
-
+    if (!btn) return;
     currentSeason = currentSeason === 'rest' ? 'comeback' : 'rest';
-    
-    if(currentSeason === 'comeback') { 
-        btn.textContent = "🔥 컴백 활동기"; 
-        btn.className = "text-xs px-2 py-1 rounded border transition-colors bg-red-100 text-red-700 border-red-200 animate-pulse"; 
-        alert("📢 컴백 활동기가 시작되었습니다! 스케줄이 늘어나고 예민해집니다."); 
-    } else { 
-        btn.textContent = "🌱 휴식기"; 
-        btn.className = "text-xs px-2 py-1 rounded border transition-colors bg-green-100 text-green-700 border-green-200"; 
-        alert("☕ 활동이 종료되고 휴식기에 들어갑니다. 자유시간이 늘어납니다."); 
-    }
+    if(currentSeason === 'comeback') { btn.textContent = "🔥 컴백 활동기"; btn.className = "text-xs px-2 py-1 rounded border transition-colors bg-red-100 text-red-700 border-red-200 animate-pulse"; alert("활동기 시작! 예민하고 바빠집니다."); }
+    else { btn.textContent = "🌱 휴식기"; btn.className = "text-xs px-2 py-1 rounded border transition-colors bg-green-100 text-green-700 border-green-200"; alert("휴식기 시작! 놀러 다닙니다."); }
 }
-
-
 function renderCharacterList() {
     const container = document.getElementById('character-list');
     container.innerHTML = '';
@@ -684,62 +671,23 @@ function renderCharacterList() {
     });
     document.getElementById('total-count').textContent = characters.length;
 }
-/* ================= 수정된 renderStatusTable 함수 ================= */
 function renderStatusTable() {
     const tbody = document.getElementById('status-table-body');
-    if (!tbody) return; // 테이블 몸체가 없으면 중단
-
+    if (!tbody) return;
     tbody.innerHTML = '';
     characters.forEach(char => {
         if (typeof char.hp === 'undefined') char.hp = 100;
         if (typeof char.stress === 'undefined') char.stress = 0;
-        
         const hpColor = char.hp < 30 ? "bg-red-500" : (char.hp < 70 ? "bg-yellow-500" : "bg-green-500");
         const stressColor = char.stress > 80 ? "bg-red-600" : (char.stress > 50 ? "bg-orange-400" : "bg-blue-400");
-        
         const tr = document.createElement('tr');
         tr.className = "border-b border-slate-100 dark:border-slate-700 last:border-0";
-        tr.innerHTML = `
-            <td class="px-4 py-3">
-                <div class="font-medium text-slate-900 dark:text-white flex items-center gap-2">
-                    ${char.name} ${getRoleBadge(char.role)}
-                </div>
-            </td>
-            <td class="px-4 py-3 w-1/3">
-                <div class="flex justify-between text-[10px] text-slate-500 mb-1">
-                    <span>HP</span> <span>${Math.round(char.hp)}%</span>
-                </div>
-                <div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-1.5 mb-2 overflow-hidden">
-                    <div class="${hpColor} h-1.5 rounded-full transition-all duration-500" style="width:${char.hp}%"></div>
-                </div>
-                <div class="flex justify-between text-[10px] text-slate-500 mb-1">
-                    <span>Stress</span> <span>${Math.round(char.stress)}%</span>
-                </div>
-                <div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-1.5 overflow-hidden">
-                    <div class="${stressColor} h-1.5 rounded-full transition-all duration-500" style="width:${char.stress}%"></div>
-                </div>
-            </td>
-            <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
-                <div class="flex flex-col items-start gap-1">
-                    <span class="font-bold text-[10px] bg-slate-100 dark:bg-slate-600 px-1.5 py-0.5 rounded text-slate-500">${getLocationName(char.currentLocation)}</span>
-                    <span class="text-xs truncate max-w-[120px]">${char.currentAction || '-'}</span>
-                </div>
-            </td>`;
+        tr.innerHTML = `<td class="px-4 py-3"><div class="font-medium text-slate-900 dark:text-white flex items-center gap-2">${char.name} ${getRoleBadge(char.role)}</div></td><td class="px-4 py-3 w-1/3"><div class="flex justify-between text-[10px] text-slate-500 mb-1"><span>HP</span> <span>${Math.round(char.hp)}%</span></div><div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-1.5 mb-2 overflow-hidden"><div class="${hpColor} h-1.5 rounded-full transition-all duration-500" style="width:${char.hp}%"></div></div><div class="flex justify-between text-[10px] text-slate-500 mb-1"><span>Stress</span> <span>${Math.round(char.stress)}%</span></div><div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-1.5 overflow-hidden"><div class="${stressColor} h-1.5 rounded-full transition-all duration-500" style="width:${char.stress}%"></div></div></td><td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300"><div class="flex flex-col items-start gap-1"><span class="font-bold text-[10px] bg-slate-100 dark:bg-slate-600 px-1.5 py-0.5 rounded text-slate-500">${getLocationName(char.currentLocation)}</span><span class="text-xs truncate max-w-[120px]">${char.currentAction||'-'}</span></div></td>`;
         tbody.appendChild(tr);
-            // [에러 수정 부분] 요소가 있는지 확인하고 텍스트 변경
-        const badge = document.getElementById('day-badge');
-        if (badge) {
-            badge.textContent = `${day}일차`;
-        }
     });
     const badge = document.getElementById('day-badge');
-    if (badge) {
-        badge.textContent = `${day}일차`;
-    }
-
-
+    if (badge) badge.textContent = `${day}일차`;
 }
-
 function getProbabilisticChange(score) {
     const rand = Math.random() * 100;
     if (score === 5) { if (rand < 50) return 10; if (rand < 75) return 5; if (rand < 90) return 0; return -5; } 
