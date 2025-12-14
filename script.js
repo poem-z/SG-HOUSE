@@ -726,17 +726,18 @@ function renderStatusTable() {
                 </div>
             </td>`;
         tbody.appendChild(tr);
+            // [에러 수정 부분] 요소가 있는지 확인하고 텍스트 변경
+        const badge = document.getElementById('day-badge');
+        if (badge) {
+            badge.textContent = `${day}일차`;
+        }
     });
     const badge = document.getElementById('day-badge');
     if (badge) {
         badge.textContent = `${day}일차`;
     }
 
-    // [에러 수정 부분] 요소가 있는지 확인하고 텍스트 변경
-    const badge = document.getElementById('day-badge');
-    if (badge) {
-        badge.textContent = `${day}일차`;
-    }
+
 }
 
 function getProbabilisticChange(score) {
