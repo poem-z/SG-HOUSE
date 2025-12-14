@@ -48,36 +48,35 @@ const ACTIONS = [
     { id: 'swim', name: '호캉스', place: 'hotel', text: ['수영장에서 인생샷을 찍었다', '룸서비스를 시켜 먹었다', '조식을 먹으러 일찍 일어났다'] }
 ];
 
+/* ================= 수정된 이벤트 목록 (서열 행동 제거됨) ================= */
 const EVENTS = [
-    // [Positive]
+    // [Positive: 우정]
     { type: 'friend', name: '수다', change: 5, text: '와(과) 밤새도록 시간 가는 줄 모르고 수다를 떨었다' },
     { type: 'praise', name: '칭찬', change: 10, text: '의 바뀐 헤어스타일과 코디를 칭찬해주었다' },
     { type: 'gift', name: '선물', change: 10, text: '에게 "오다가 주웠다"며 작은 선물을 줬다' },
-    { type: 'treat', name: '한턱', change: 15, text: '에게 맛있는 밥을 사주며 "형(언니)이 쏜다!"라고 했다' },
+    { type: 'treat', name: '한턱', change: 15, text: '에게 맛있는 밥을 사주며 "형(언니)이 쏜다!"라고 했다' }, // 이건 동등한 관계에서도 씀
     { type: 'reconcile', name: '화해', change: 20, text: '와(과) 술 한 잔 하며 묵은 감정을 털어내고 화해했다' },
     { type: 'console', name: '위로', change: 15, text: '이(가) 우울해 보여 조용히 다가가 따뜻하게 안아주었다' },
     
-    // [Negative]
+    // [Negative: 갈등]
     { type: 'fight', name: '싸움', change: -15, text: '와(과) 사소한 말실수 때문에 크게 다퉜다' },
-    { type: 'nag', name: '잔소리', change: -5, text: '에게 "양말 좀 뒤집어 놓지 마!"라고 잔소리를 퍼부었다' },
+    { type: 'nag', name: '잔소리', change: -5, text: '에게 "양말 좀 뒤집어 놓지 마!"라고 잔소리를 퍼부었다' }, // 이건 동거인끼리 가능
     { type: 'steal_food', name: '서리', change: -10, text: '이(가) 아껴둔 간식을 몰래 훔쳐 먹다가 걸렸다' },
     { type: 'ignore', name: '무시', change: -10, text: '의 인사를 못 본 척하고 지나갔다' },
     { type: 'diss', name: '디스', change: -15, text: '의 흑역사 사진을 단톡방에 올려 놀렸다' },
     { type: 'cut', name: '절교', change: -30, text: '와(과) 더 이상 말을 섞지 않겠다며 냉전을 선포했다' },
 
-    // [Romance/Flirt]
+    // [Romance: 설렘]
     { type: 'flirt', name: '플러팅', change: 10, text: '에게 은근슬쩍 윙크를 하며 장난을 쳤다' },
     { type: 'skinship', name: '스킨십', change: 15, text: '의 어깨에 자연스럽게 기대어 잠들었다' },
     { type: 'gaze', name: '눈맞춤', change: 10, text: '와(과) 우연히 눈이 마주치자 묘한 기류가 흘렀다' },
 
-    // [Funny]
+    // [Funny: 일상]
     { type: 'drunk', name: '주사', change: 5, text: '에게 술에 취해 혀 짧은 소리로 애교를 부렸다' },
     { type: 'game_bet', name: '내기', change: -5, text: '와(과) 게임 내기를 하다가 져서 딱밤을 맞았다' },
+    { type: 'tmi', name: 'TMI', change: 5, text: '에게 안 궁금한 TMI를 1시간 동안 떠들었다' }
     
-    // [Hierarchy]
-    { type: 'bow', name: '인사', change: 5, text: '에게 90도로 깍듯하게 폴더 인사를 했다' },
-    { type: 'treat_senior', name: '내리사랑', change: 15, text: '에게 "먹고 싶은 거 다 골라"라며 법카를 긁었다' },
-    { type: 'scold', name: '훈계', change: -5, text: '를 불러 "라떼는 말이야"라며 1시간 동안 설교했다' }
+    // ⚠️ [삭제됨] 인사, 내리사랑(법카), 훈계 -> 이제 서열 로직에서만 발생함
 ];
 
 const SECRET_EVENTS = [
@@ -642,10 +641,22 @@ function switchTab(tabId) {
 }
 function toggleSeason() {
     const btn = document.getElementById('season-btn');
+    if (!btn) return; // 버튼이 없으면 함수 종료 (에러 방지)
+
     currentSeason = currentSeason === 'rest' ? 'comeback' : 'rest';
-    if(currentSeason === 'comeback') { btn.textContent = "🔥 컴백 활동기"; btn.className = "text-xs px-2 py-1 rounded border transition-colors bg-red-100 text-red-700 border-red-200 animate-pulse"; alert("활동기 시작! 예민하고 바빠집니다."); }
-    else { btn.textContent = "🌱 휴식기"; btn.className = "text-xs px-2 py-1 rounded border transition-colors bg-green-100 text-green-700 border-green-200"; alert("휴식기 시작! 놀러 다닙니다."); }
+    
+    if(currentSeason === 'comeback') { 
+        btn.textContent = "🔥 컴백 활동기"; 
+        btn.className = "text-xs px-2 py-1 rounded border transition-colors bg-red-100 text-red-700 border-red-200 animate-pulse"; 
+        alert("📢 컴백 활동기가 시작되었습니다! 스케줄이 늘어나고 예민해집니다."); 
+    } else { 
+        btn.textContent = "🌱 휴식기"; 
+        btn.className = "text-xs px-2 py-1 rounded border transition-colors bg-green-100 text-green-700 border-green-200"; 
+        alert("☕ 활동이 종료되고 휴식기에 들어갑니다. 자유시간이 늘어납니다."); 
+    }
 }
+
+
 function renderCharacterList() {
     const container = document.getElementById('character-list');
     container.innerHTML = '';
@@ -716,6 +727,10 @@ function renderStatusTable() {
             </td>`;
         tbody.appendChild(tr);
     });
+    const badge = document.getElementById('day-badge');
+    if (badge) {
+        badge.textContent = `${day}일차`;
+    }
 
     // [에러 수정 부분] 요소가 있는지 확인하고 텍스트 변경
     const badge = document.getElementById('day-badge');
