@@ -777,3 +777,157 @@ function importData(input) {
     };
     r.readAsText(f); input.value = '';
 }
+
+function renderLocations() {
+    // 1. 아파트 (숙소) 렌더링
+    const aptGrid = document.getElementById('apartment-grid');
+    if (aptGrid) {
+        aptGrid.innerHTML = '';
+        const renderedIds = new Set();
+        
+        // 그룹 멤버 찾기 헬퍼
+        const getGroupMembers = (char) => {
+            if (!char.interactionGroup) return [char];
+            return characters.filter(c => c.interactionGroup === char.interactionGroup && c.currentLocation === char.currentLocation);
+        };
+
+        // 5층부터 1층까지
+        for (let f=5; f>=1; f--) { 
+            for (let r=1; r<=6; r++) {
+                const roomNum = `${f}0${r}`;
+                
+                // 숙소 내부에 있는 멤버 찾기 (거실, 주방, 방)
+                const occupants = characters.filter(c => 
+                    c.room === roomNum && ['apt', 'kitchen', 'room'].includes(c.currentLocation)
+                );
+
+                const cell = document.createElement('div');
+                cell.className = "bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg p-2 min-h-[80px] flex flex-col relative transition-colors hover:border-brand-300 dark:hover:border-brand-700";
+                cell.innerHTML = `<div class="text-[10px] font-mono text-slate-400 mb-1 absolute top-1 right-2">${roomNum}</div>`;
+                
+                const occDiv = document.createElement('div');
+                occDiv.className = "flex flex-wrap gap-1 mt-4";
+                
+                occupants.forEach(occ => {
+                    if (renderedIds.has(occ.id)) return;
+                    const groupMembers = getGroupMembers(occ);
+                    
+                    // 같은 방, 같은 장소에 있는 그룹인지 확인
+                    const isGroup = groupMembers.length > 1 && groupMembers.every(m => m.room === roomNum && m.currentLocation === occ.currentLocation);
+                    
+                    // 장소별 아이콘 설정
+                    let locIcon = ""; 
+                    let badgeColor = "bg-white border-slate-200 text-slate-700";
+                    
+                    if (occ.currentLocation === 'kitchen') {
+                        locIcon = '<i class="fa-solid fa-utensils text-[8px] mr-1 text-orange-400"></i>';
+                        badgeColor = "bg-orange-50 border-orange-100 text-orange-700";
+                    } else if (occ.currentLocation === 'room') {
+                        locIcon = '<i class="fa-solid fa-bed text-[8px] mr-1 text-blue-400"></i>';
+                        badgeColor = "bg-blue-50 border-blue-100 text-blue-700";
+                    } else {
+                        locIcon = '<i class="fa-solid fa-couch text-[8px] mr-1 text-green-400"></i>'; // 거실
+                    }
+
+                    if (isGroup) {
+                         const groupSpan = document.createElement('span');
+                         groupSpan.className = `inline-flex items-center gap-0.5 border rounded px-1.5 py-0.5 shadow-sm max-w-full flex-wrap ${badgeColor} dark:bg-slate-600 dark:border-slate-500 dark:text-slate-200`;
+                         let html = locIcon;
+                         groupMembers.forEach((m, idx) => {
+                             html += `<span class="text-[10px] font-bold whitespace-nowrap">${m.name}</span>`;
+                             if (idx < groupMembers.length - 1) html += `<span class="text-[8px] opacity-50 mx-0.5">&</span>`;
+                             renderedIds.add(m.id);
+                         });
+                         groupSpan.innerHTML = html;
+                         occDiv.appendChild(groupSpan);
+                    } else {
+                         const badge = document.createElement('span');
+                         badge.className = `text-[10px] px-1.5 py-0.5 rounded border shadow-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-full flex items-center ${badgeColor} dark:bg-slate-600 dark:border-slate-500 dark:text-slate-200`;
+                         badge.innerHTML = `${locIcon}<span class="font-bold">${occ.name}</span>`;
+                         occDiv.appendChild(badge);
+                         renderedIds.add(occ.id);
+                    }
+                });
+                cell.appendChild(occDiv);
+                aptGrid.appendChild(cell);
+            }
+        }
+    }
+
+    // 2. 외부 장소 렌더링
+    const extList = document.getElementById('external-places-list');
+    if (extList) {
+        extList.innerHTML = '';
+        const placesToRender = PLACES.filter(p => p.type === 'out' || p.type === 'travel');
+        
+        // 아이콘 매핑
+        const icons = {
+            practice: 'fa-person-running', studio: 'fa-microphone-lines', broadcast: 'fa-video',
+            shop: 'fa-wand-magic-sparkles', gym: 'fa-dumbbell', ceo: 'fa-user-tie',
+            pc_bang: 'fa-computer', hangang: 'fa-bicycle', cinema: 'fa-film',
+            dept_store: 'fa-bag-shopping', travel: 'fa-plane', camping: 'fa-campground', hotel: 'fa-water'
+        };
+
+        placesToRender.forEach(place => {
+            const occupants = characters.filter(c => c.currentLocation === place.id);
+            const row = document.createElement('div');
+            
+            // 여행지는 색상 다르게 표시
+            let rowStyle = "bg-slate-50 dark:bg-slate-700/50 border-slate-100 dark:border-slate-600";
+            let iconStyle = "text-slate-400 bg-white dark:bg-slate-600";
+            
+            if (place.type === 'travel') {
+                rowStyle = "bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-800";
+                iconStyle = "text-purple-500 bg-white dark:bg-slate-600";
+            }
+
+            row.className = `p-3 rounded-lg border flex items-start gap-3 ${rowStyle}`;
+            const iconClass = icons[place.id] || 'fa-location-dot';
+            
+            let html = `
+                <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm flex-none ${iconStyle}">
+                    <i class="fa-solid ${iconClass}"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="font-bold text-xs mb-1.5 text-slate-500 dark:text-slate-400 uppercase tracking-wider flex justify-between">
+                        ${place.name}
+                        ${occupants.length > 0 ? `<span class="bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 px-1.5 rounded-full text-[10px]">${occupants.length}</span>` : ''}
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 min-h-[20px]">
+            `;
+            
+            if (occupants.length === 0) {
+                html += `<span class="text-xs text-slate-300 dark:text-slate-600">-</span>`;
+            } else {
+                const extRenderedIds = new Set();
+                
+                // 그룹 멤버 찾기 헬퍼 (재사용)
+                const getGroupMembers = (char) => {
+                    if (!char.interactionGroup) return [char];
+                    return characters.filter(c => c.interactionGroup === char.interactionGroup && c.currentLocation === char.currentLocation);
+                };
+
+                occupants.forEach(occ => {
+                     if (extRenderedIds.has(occ.id)) return;
+                     const groupMembers = getGroupMembers(occ);
+
+                     if (groupMembers.length > 1) {
+                         html += `<span class="inline-flex items-center gap-1 bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 rounded-md px-1.5 py-0.5 shadow-sm">`;
+                         groupMembers.forEach((m, idx) => {
+                             html += `<span class="text-[11px] font-bold text-slate-700 dark:text-slate-200">${m.name}</span>`;
+                             if (idx < groupMembers.length - 1) html += `<span class="text-[8px] text-brand-400 mx-0.5"><i class="fa-solid fa-link"></i></span>`;
+                             extRenderedIds.add(m.id);
+                         });
+                         html += `</span>`;
+                     } else {
+                         html += `<span class="text-[11px] font-bold bg-white dark:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-500 px-1.5 py-0.5 rounded-md shadow-sm">${occ.name}</span>`;
+                         extRenderedIds.add(occ.id);
+                     }
+                });
+            }
+            html += `</div></div>`;
+            row.innerHTML = html;
+            extList.appendChild(row);
+        });
+    }
+}
